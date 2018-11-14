@@ -1,0 +1,156 @@
+
+# coding: utf-8
+
+# In[1]:
+
+
+import tensorflow as tf
+from tensorflow.examples.tutorials.mnist import input_data
+import matplotlib.pylab as plt
+import numpy as np
+from time import time
+
+mnist = input_data.read_data_sets("MNIST_data/", one_hot=True)
+
+# mnist 中每张图片共有28*28个像素点
+x = tf.placeholder(tf.float32, [None, 784], name="X")
+
+# y是分类结果，一个结果又10个元素，代码是每个数字的概率
+y = tf.placeholder(tf.float32, [None,10], name="Y")
+
+#构建隐藏层
+H1_NN = 256 #第1隐藏层神经元为256个
+H2_NN = 64  #第2隐藏层神经元为64个
+
+############################################################################################
+#第1隐藏层参数和偏置项，标准差stddev=0.1
+W1 = tf.Variable(tf.truncated_normal([784,H1_NN], stddev=0.1))
+b1 = tf.Variable(tf.zeros([H1_NN]))
+
+#第二隐藏层参数和偏置项
+W2 = tf.Variable(tf.truncated_normal([H1_NN,H2_NN], stddev=0.1))
+b2 = tf.Variable(tf.zeros([H2_NN]))
+
+
+# 输出层参数和偏置项
+W3 = tf.Variable(tf.truncated_normal([H2_NN,10], stddev=0.1))
+b3 = tf.Variable(tf.zeros([10]))
+
+#计算第1隐藏层的结果
+Y1 = tf.nn.relu(tf.matmul(x,W1) + b1)
+
+
+#计算第2隐藏层结果
+Y2 = tf.nn.relu(tf.matmul(Y1,W2) + b2)
+############################################################################################
+#计算输出结果
+forward = tf.matmul(Y2,W3) + b3
+
+
+#将结果forward进行分类化,总概率为1
+pred = tf.nn.softmax(forward)
+
+###
+train_epochs = 40 #训练轮数
+batch_size = 50 #每次训练样本数
+total_batch = int(mnist.train.num_examples/batch_size) #一轮训练多少次
+display_step = 1 #显示粒度
+learning_rate = 0.01
+
+
+#Tensorflow 提供了softmax_cross_entropy_with_logits 函数
+#用于避免因为log(0) 值为NaN 造成的数据不稳定
+#这里的forward 是没有经过softmax处理的数值
+loss_function = tf.reduce_mean(
+    tf.nn.softmax_cross_entropy_with_logits(logits=forward,labels=y))
+
+optimizer = tf.train.AdamOptimizer(learning_rate).minimize(loss_function)
+
+# 检查预测类别tf.argmax(pred,1) 与实际类别tf.argmax(y,1) 的匹配情况
+#这里也是批量的准确率correction_prediction，里面的值就是pred中的下标值，就是0-9之间的
+#因为argmax 会取出pred每个中的最大值，也就是分出来的类别是什么
+#相等为true，不相等为false
+correction_prediction = tf.equal(tf.argmax(pred,1),tf.argmax(y,1))
+
+
+#将结果转换为float32类型，因为之前的结果是true，和false是无法直接进行运算的
+#求这些prediction的平均值，作为准确率，也就是批量的预测的均值
+#correct_prediction 转换之后，内容不是0就是1，就可以进行计算了
+accuracy = tf.reduce_mean(tf.cast(correction_prediction, tf.float32))
+
+startTime = time()
+sess = tf.Session()
+
+init = tf.global_variables_initializer()
+sess.run(init)
+
+
+#开始训练
+for epoch in range(train_epochs):
+    
+    #全部样本训练一轮
+    for batch in range(total_batch):
+        xs, ys = mnist.train.next_batch(batch_size) #读取批次数据
+        sess.run(optimizer,feed_dict={x:xs,y:ys})
+    
+    #一轮训练完毕,使用验证数据计算误差和准确率
+    loss, acc = sess.run([loss_function, accuracy],
+                       feed_dict={x:mnist.validation.images,y:mnist.validation.labels})
+    
+    #打印训练过程中的信息
+    if (epoch+1) % display_step == 0:
+        print("Train Epoch:", '%02d' %(epoch+1), "Loss=",'{:.9f}'.format(loss),              "Accuracy=","{:.4f}".format(acc))
+duration = time() - startTime
+print("Train Finished takes:","{:.2f}".format(duration))
+
+##############训练完成之后，在测试集上评估模型的准确率
+
+accu_test = sess.run(accuracy,feed_dict={x:mnist.test.images,y:mnist.test.labels})
+
+print("Test Accuracy:", accu_test)
+
+
+################在建立模型并进行训练之后，若认为准确率可以接收，则可以使用此模型进行预测
+
+prediction_result = sess.run(tf.argmax(pred, 1), feed_dict={x:mnist.test.images})
+
+print(prediction_result[0:10])
+
+
+#########################可视化
+def plot_images_labels_prediction(images,     #图像列表
+                                  labels,     #标签列表
+                                  prediction, #预测值列表
+                                  index,      #从第index个显示显示
+                                  num=10):    #缺省一次显示10幅
+    fig = plt.gcf() #获取当前图表，Get Current Figure
+    fig.set_size_inches(10,12)# 英寸，1英寸等于2.54cm
+    if num > 25:
+        num = 25      #最多显示25个子图
+    
+    for i in range(0, num):
+        ax = plt.subplot(5,5, i+1) #获取当前要处理的子图
+        ax.imshow(np.reshape(images[index],(28,28)), cmap='binary')  #显示第index个图像
+        
+        title = "label=" + str(np.argmax(labels[index]))  #构建该图上要显示的title
+        if len(prediction) > 0:
+            title += ".predict=" + str(prediction[index])
+        
+        ax.set_title(title, fontsize=10) # 显示图上的title信息
+        ax.set_xticks([]) #不显示坐标轴
+        ax.set_yticks([])
+        
+        index += 1
+    
+    plt.show()
+
+plot_images_labels_prediction(mnist.test.images,
+                             mnist.test.labels,
+                             prediction_result,0,15)
+
+
+# In[ ]:
+
+
+
+

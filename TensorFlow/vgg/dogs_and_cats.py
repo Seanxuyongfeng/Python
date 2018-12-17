@@ -48,11 +48,11 @@ for i in range(1000):
     print("Now the loss is %f" %loss)
     
     epoch_end_time = time()
-    print('Current epoch takes:',(epoch_end_time - epoch_end_time))
+    print('Current epoch takes:',(epoch_end_time - epoch_start_time))
     epoch_start_time = epoch_end_time
     
     if (i+1) % 500 == 0:
-        saver.save(sess.os.path.join("./model",'epoch_{:06d}.ckpt'.format(i)))
+        saver.save(sess,os.path.join("./model",'epoch_{:06d}.ckpt'.format(i)))
     print("------------------Epoch %d is finished------------------"%i)
 
 #模型保存

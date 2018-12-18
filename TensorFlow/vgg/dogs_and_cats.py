@@ -10,13 +10,14 @@ import VGG16_model as model
 import utils
 
 startTime = time()
-batch_size = 32
+batch_size = 16
 capacity=256 #内存中存储的最大数据容量
 mean = [123.68,116.779,103.939]#VGG训练时图像预处理所减均值(RGB三通道)
 
 #获取图像列表和标签列表
-xs,ys = utils.get_file("./data/train/")
-
+xs,ys = utils.get_file_forwindows("./data/train/")
+print("xs len:",len(xs))
+print("ys len:",len(ys))
 image_batch,label_batch = utils.get_batch(xs,ys,224,224,batch_size,capacity)
 
 x = tf.placeholder(tf.float32,[None,224,224,3])
